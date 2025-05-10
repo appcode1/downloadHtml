@@ -1,6 +1,9 @@
-Download the bible HTML page content
-convert the content encoding the Chinese GB2312 to UFT8
-update the HTML content and layout
+## Steps to Process Bible HTML Content
 
-usage example in a command prompt: 
-downloadHtml.exe 1 1047 1096
+1. **Download the Bible HTML page content**
+2. **Convert the content encoding from Chinese GB2312 to UTF-8**
+3. **Update the HTML content and layout**
+4. **Usage example in a command prompt:**
+
+   ```bash
+   downloadHtml.exe 1 1047 1096
