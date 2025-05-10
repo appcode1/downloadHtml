@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using System.Linq.Expressions;
 
 
 namespace downloadHtml
@@ -54,36 +55,43 @@ namespace downloadHtml
                 return;
             }
 
+            if (!Directory.Exists("images"))
+            {
+                Directory.CreateDirectory("images");
+            }
+            if (!File.Exists("images\\left.gif"))
+            {
+                await DownloadFile($"{baseUrl}left.gif", $"images\\left.gif");
+                await DownloadFile($"{baseUrl}up.gif", $"images\\up.gif");
+                await DownloadFile($"{baseUrl}right.gif", $"images\\right.gif");
+            }
+
             string subfolder = $"{orderId:D2}";
             if (!Directory.Exists(subfolder))
             {
                 Directory.CreateDirectory(subfolder);
             }
-            else if (File.Exists($"{subfolder}\\up.gif"))
+            if (Directory.GetFiles(subfolder).Length > 0)
             {
-                Console.WriteLine($"{subfolder} has files inside it!!!");
+                Console.WriteLine($"There are files existed in the subfolder - {subfolder} !!!");
                 return;
             }
 
-            if (!File.Exists("left.gif"))
-            {
-                await DownloadFile($"{baseUrl}left.gif", $"{subfolder}\\left.gif");
-                await DownloadFile($"{baseUrl}up.gif", $"{subfolder}\\up.gif");
-                await DownloadFile($"{baseUrl}right.gif", $"{subfolder}\\right.gif");
-            }
-
+            List<string> downloadedFiles = new List<string>();
             for (int i = start; i <= end; i++)
             {
                 string url = $"{baseUrl}{i}.htm";
                 Console.WriteLine($"downloading {url} ...");
-                await DownloadHtmlFile(url, $"{subfolder}\\{i}.htm");
+                bool flag = await DownloadHtmlFile(url, $"{subfolder}\\{i}.htm");
+                if (flag)
+                    downloadedFiles.Add($"{subfolder}\\{i}.htm");
             }
 
-            for (int i = start; i <= end; i++)
+            foreach (var fileName in downloadedFiles)
             {
-                Console.WriteLine($"updating {subfolder}\\{i}.htm ...");
+                Console.WriteLine($"updating {fileName} ...");
 
-                string htmlText = File.ReadAllText($"{subfolder}\\{i}.htm");
+                string htmlText = File.ReadAllText(fileName);
                 htmlText = UpdateHtmlText(htmlText);
 
                 int contentStart = htmlText.IndexOf("<div id=\"content\">");
@@ -109,7 +117,7 @@ namespace downloadHtml
                     }
                 }
 
-                File.WriteAllText($"{subfolder}\\{i}.htm", htmlText);
+                File.WriteAllText(fileName, htmlText);
             }
 
             if (orderId > 1)
@@ -135,17 +143,28 @@ namespace downloadHtml
         /// </summary>
         /// <param name="url"></param>
         /// <param name="fileName"></param>
-        /// <returns></returns>
-        static async Task DownloadHtmlFile(string url, string fileName)
+        /// <returns>true if download success</returns>
+        static async Task<bool> DownloadHtmlFile(string url, string fileName)
         {
-            using (Stream s = await client.GetStreamAsync(url))
+            using (var response = await client.GetAsync(url))
             {
-                using (StreamReader sr = new StreamReader(s, Encoding.GetEncoding(936))) //Chinese GB2312
+                if (response.IsSuccessStatusCode)
                 {
-                    using (StreamWriter sw = new StreamWriter(fileName,false, Encoding.UTF8)) //UTF8
+                    Stream s = await response.Content.ReadAsStreamAsync();
+                    using (StreamReader sr = new StreamReader(s, Encoding.GetEncoding(936))) //Chinese GB2312
                     {
-                        sw.Write(sr.ReadToEnd());
+                        using (StreamWriter sw = new StreamWriter(fileName, false, Encoding.UTF8)) //UTF8
+                        {
+                            sw.Write(sr.ReadToEnd());
+                        }
                     }
+
+                    return true;
+                }
+                else
+                {
+                    Console.WriteLine($"{url}: {response.StatusCode} - {response.ReasonPhrase}");
+                    return false;
                 }
             }
         }
@@ -167,7 +186,7 @@ namespace downloadHtml
 
             int n1 = htmlText.IndexOf("<a href=\"#Top\">");
             n1 += "<a href=\"#Top\">".Length + 60;
-            int n2 = htmlText.LastIndexOf("<img src=\"right.gif\"");
+            int n2 = htmlText.LastIndexOf("<img src=\"../images/right.gif\"");
             n1 = htmlText.IndexOf("<a href=\"", n1);
             n1 += "<a href=\"".Length;
             string r = htmlText.Substring(n1, n2 - n1 - 2);
@@ -176,13 +195,14 @@ namespace downloadHtml
         }
         static string UpdateHtmlText(string htmlText)
         {
-            htmlText = htmlText.Replace("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\r\n<html>", "<!doctype html>\r\n<html lang=\"zh-CN\">")
+            return htmlText.Replace("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\r\n<html>", "<!doctype html>\r\n<html lang=\"zh-CN\">")
             .Replace("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=gb2312\">", "<meta charset=\"utf-8\">\r\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">")
             .Replace("<link rel=\"stylesheet\" href=\"tcvbg.css\" type=\"text/css\">", "<link href=\"../main.css\" rel=\"stylesheet\">")
             .Replace("<a name=\"Top\"></a>", "<a name=\"Top\"></a><div class=\"mb-3\"><a href=\"../\"><button type=\"button\" class=\"btn btn-primary\">Home</button></a></div>")
-            .Replace("</body>", "<div class=\"mt-3\"><a href=\"../\"><button type=\"button\" class=\"btn btn-primary\">Home</button></a></div>\r\n<script src=\"../main.js\"></script>\r\n</body>");
-            
-            return htmlText;
+            .Replace("</body>", "<div class=\"mt-3\"><a href=\"../\"><button type=\"button\" class=\"btn btn-primary\">Home</button></a></div>\r\n<script src=\"../main.js\"></script>\r\n</body>")
+            .Replace("\"left.gif\"", "\"../images/left.gif\"")
+            .Replace("\"up.gif\"", "\"../images/up.gif\"")
+            .Replace("\"right.gif\"", "\"../images/right.gif\"");
         }
     }
 }
