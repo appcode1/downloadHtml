@@ -55,17 +55,6 @@ namespace downloadHtml
                 return;
             }
 
-            if (!Directory.Exists("images"))
-            {
-                Directory.CreateDirectory("images");
-            }
-            if (!File.Exists("images\\left.gif"))
-            {
-                await DownloadFile($"{baseUrl}left.gif", $"images\\left.gif");
-                await DownloadFile($"{baseUrl}up.gif", $"images\\up.gif");
-                await DownloadFile($"{baseUrl}right.gif", $"images\\right.gif");
-            }
-
             string subfolder = $"{orderId:D2}";
             if (!Directory.Exists(subfolder))
             {
@@ -184,12 +173,12 @@ namespace downloadHtml
             string subfolder = $"{orderId:D2}";
             string htmlText = File.ReadAllText($"{subfolder}\\{fileId}.htm");
 
-            int n1 = htmlText.IndexOf("<a href=\"#Top\">");
-            n1 += "<a href=\"#Top\">".Length + 60;
-            int n2 = htmlText.LastIndexOf("<img src=\"../images/right.gif\"");
+            int n1 = htmlText.IndexOf("<span class=\"arrow-up\"/>");
+            n1 += "<span class=\"arrow-up\"/>".Length;
+            int n2 = htmlText.LastIndexOf("\" title=\"Next\"");
             n1 = htmlText.IndexOf("<a href=\"", n1);
             n1 += "<a href=\"".Length;
-            string r = htmlText.Substring(n1, n2 - n1 - 2);
+            string r = htmlText.Substring(n1, n2 - n1);
             htmlText = htmlText.Replace(r, $"../{(orderId + 1):D2}/{r}");
             File.WriteAllText($"{subfolder}\\{fileId}.htm", htmlText);
         }
@@ -200,9 +189,9 @@ namespace downloadHtml
             .Replace("<link rel=\"stylesheet\" href=\"tcvbg.css\" type=\"text/css\">", "<link href=\"../main.css\" rel=\"stylesheet\">")
             .Replace("<a name=\"Top\"></a>", "<a name=\"Top\"></a><div class=\"mb-3\"><a href=\"../\"><button type=\"button\" class=\"btn btn-primary\">Home</button></a></div>")
             .Replace("</body>", "<div class=\"mt-3\"><a href=\"../\"><button type=\"button\" class=\"btn btn-primary\">Home</button></a></div>\r\n<script src=\"../main.js\"></script>\r\n</body>")
-            .Replace("\"left.gif\"", "\"../images/left.gif\"")
-            .Replace("\"up.gif\"", "\"../images/up.gif\"")
-            .Replace("\"right.gif\"", "\"../images/right.gif\"");
+            .Replace("><img src=\"left.gif\" alt=\"上一章\" width=\"18\" height=\"17\" border=\"0\">", " title=\"Prev\"><span class=\"arrow-left\"/>")
+            .Replace("><img src=\"up.gif\" alt=\"回顶部\" width=\"16\" height=\"17\" border=\"0\">", " title=\"Top\"><span class=\"arrow-up\"/>")
+            .Replace("><img src=\"right.gif\" alt=\"下一章\" width=\"18\" height=\"17\" border=\"0\">", " title=\"Next\"><span class=\"arrow-right\"/>");
         }
     }
 }
